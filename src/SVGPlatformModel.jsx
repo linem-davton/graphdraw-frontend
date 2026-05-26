@@ -78,6 +78,8 @@ const SVGPlatformModel = ({
         width: 10,
         height: 10,
         label: edge.link_delay,
+        start_node: edge.start_node,
+        end_node: edge.end_node,
       });
     });
 
@@ -127,7 +129,11 @@ const SVGPlatformModel = ({
       .append("g")
       .attr("class", "edge")
       .on("click", (_event, d) => {
-        onEdgeSelect?.({ start_node: d.v, end_node: d.w });
+        const selectedEdge = dagreGraph.edge(d);
+        onEdgeSelect?.({
+          start_node: selectedEdge?.start_node ?? d.v,
+          end_node: selectedEdge?.end_node ?? d.w,
+        });
       });
 
     edges
@@ -135,8 +141,8 @@ const SVGPlatformModel = ({
       .classed(
         "highlighted-edge",
         (d) =>
-          highlightedEdge?.start_node === d.v &&
-          highlightedEdge?.end_node === d.w,
+          String(highlightedEdge?.start_node) === String(d.v) &&
+          String(highlightedEdge?.end_node) === String(d.w),
       )
       .attr("x1", (d) => calculateBoundaryPoint(dagreGraph.node(d.v), dagreGraph.node(d.w)).x)
       .attr("y1", (d) => calculateBoundaryPoint(dagreGraph.node(d.v), dagreGraph.node(d.w)).y)

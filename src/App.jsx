@@ -30,7 +30,12 @@ import ScheduleVisualization from "./ScheduleVisualization";
 import examplejson from "./example1.json";
 import schema from "./input_schema.json";
 import { saveToLocalStorage, loadFromLocalStorage } from "./utility";
-import { generateRandomAM, generateRandomPM } from "./randomModels";
+import {
+  generateRandomAM,
+  generateRandomPM,
+  getApplicationParameterError,
+  getPlatformParameterError,
+} from "./randomModels";
 import {
   ApplicationModal,
   NodeLinkModal,
@@ -250,6 +255,13 @@ function App() {
   const schedulePanelRef = usePanelRef();
   const fileInputRef = useRef(null);
   const scheduleAbortControllerRef = useRef(null);
+  const skipNextAutoScheduleRef = useRef(false);
+  const keyboardActionsRef = useRef({
+    clearSelection: () => {},
+    downloadJsonFile: () => {},
+    handleFileUpload: () => {},
+    removeCurrentSelection: () => {},
+  });
 
   const activeServerUrl =
     server === "remote"
@@ -313,10 +325,17 @@ function App() {
         application: applicationModel,
         platform: platformModel,
       });
-      scheduleGraph();
+
+      if (skipNextAutoScheduleRef.current) {
+        skipNextAutoScheduleRef.current = false;
+        return;
+      }
+
+      scheduleGraph(applicationModel, platformModel);
       return;
     }
 
+    skipNextAutoScheduleRef.current = false;
     setScheduleData(null);
   }, [applicationModel, platformModel, activeServerUrl]);
 
@@ -330,13 +349,13 @@ function App() {
     const handleKeyDown = (event) => {
       if (event.ctrlKey && event.key === "s") {
         event.preventDefault();
-        downloadJsonFile();
+        keyboardActionsRef.current.downloadJsonFile();
       } else if (event.ctrlKey && event.key === "o") {
         event.preventDefault();
-        handleFileUpload();
+        keyboardActionsRef.current.handleFileUpload();
       } else if (event.key === "Delete") {
         event.preventDefault();
-        removeCurrentSelection();
+        keyboardActionsRef.current.removeCurrentSelection();
       } else if (event.key === "Escape") {
         event.preventDefault();
         setImmersiveCanvas((prev) => {
@@ -344,7 +363,7 @@ function App() {
             return null;
           }
 
-          clearSelection();
+          keyboardActionsRef.current.clearSelection();
           return prev;
         });
       }
@@ -704,9 +723,13 @@ function App() {
     URL.revokeObjectURL(url);
   };
 
-  const scheduleGraph = async () => {
-    if (!applicationModel.tasks.length || !platformModel.nodes.length) {
-      return;
+  const scheduleGraph = async (
+    nextApplicationModel = applicationModel,
+    nextPlatformModel = platformModel,
+    { suppressConnectionToast = false } = {},
+  ) => {
+    if (!nextApplicationModel.tasks.length || !nextPlatformModel.nodes.length) {
+      return { ok: true, skipped: true };
     }
 
     scheduleAbortControllerRef.current?.abort();
@@ -719,8 +742,8 @@ function App() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          application: applicationModel,
-          platform: platformModel,
+          application: nextApplicationModel,
+          platform: nextPlatformModel,
         }),
         signal: abortController.signal,
       });
@@ -738,17 +761,33 @@ function App() {
 
       setScheduleData(data);
       setErrorMessage(warnings);
+      return { ok: true };
     } catch (error) {
       if (error.name !== "AbortError") {
-        setErrorMessage(["Error connecting to server"]);
+        if (!suppressConnectionToast) {
+          setErrorMessage(["Error connecting to server"]);
+        }
         console.error("Error connecting to backend:", error);
+        return {
+          ok: false,
+          error: "Model updated locally, but the server could not be reached.",
+        };
       }
+
+      return { ok: false, aborted: true };
     } finally {
       if (scheduleAbortControllerRef.current === abortController) {
         setIsScheduling(false);
         scheduleAbortControllerRef.current = null;
       }
     }
+  };
+
+  keyboardActionsRef.current = {
+    clearSelection,
+    downloadJsonFile,
+    handleFileUpload,
+    removeCurrentSelection,
   };
 
   const appClassName = [
@@ -1177,20 +1216,48 @@ function App() {
         <ApplicationModal
           isOpen={applicationModalOpen}
           onClose={() => setApplicationModalOpen(false)}
-          onSubmit={(params) => {
-            setApplicationModel(
-              generateRandomAM(
-                params.N,
-                params.maxWCET,
-                params.minWCET,
-                params.minMCET,
-                params.minDeadlineOffset,
-                params.maxDeadline,
-                params.linkProb,
-                params.maxMessageSize,
-              ),
+          onSubmit={async (params) => {
+            const nextError = getApplicationParameterError(
+              params.N,
+              params.maxWCET,
+              params.minWCET,
+              params.minMCET,
+              params.minDeadlineOffset,
+              params.maxDeadline,
+              params.linkProb,
+              params.maxMessageSize,
             );
+
+            if (nextError) {
+              return nextError;
+            }
+
+            const nextApplicationModel = generateRandomAM(
+              params.N,
+              params.maxWCET,
+              params.minWCET,
+              params.minMCET,
+              params.minDeadlineOffset,
+              params.maxDeadline,
+              params.linkProb,
+              params.maxMessageSize,
+            );
+
+            skipNextAutoScheduleRef.current = true;
+            setApplicationModel(nextApplicationModel);
             clearSelection();
+
+            if (!platformModel.nodes.length) {
+              return "";
+            }
+
+            const scheduleResult = await scheduleGraph(
+              nextApplicationModel,
+              platformModel,
+              { suppressConnectionToast: true },
+            );
+
+            return scheduleResult.ok ? "" : scheduleResult.error ?? "";
           }}
         />
 
@@ -1218,20 +1285,48 @@ function App() {
         <PlatformModal
           isOpen={platformModalOpen}
           onClose={() => setPlatformModalOpen(false)}
-          onSubmit={(params) => {
-            setPlatformModel(
-              generateRandomPM(
-                params.compute,
-                params.routers,
-                params.sensors,
-                params.actuators,
-                params.maxLinkDelay,
-                params.minLinkDelay,
-                params.maxBandwidth,
-                params.minBandwidth,
-              ),
+          onSubmit={async (params) => {
+            const nextError = getPlatformParameterError(
+              params.compute,
+              params.routers,
+              params.sensors,
+              params.actuators,
+              params.maxLinkDelay,
+              params.minLinkDelay,
+              params.maxBandwidth,
+              params.minBandwidth,
             );
+
+            if (nextError) {
+              return nextError;
+            }
+
+            const nextPlatformModel = generateRandomPM(
+              params.compute,
+              params.routers,
+              params.sensors,
+              params.actuators,
+              params.maxLinkDelay,
+              params.minLinkDelay,
+              params.maxBandwidth,
+              params.minBandwidth,
+            );
+
+            skipNextAutoScheduleRef.current = true;
+            setPlatformModel(nextPlatformModel);
             clearSelection();
+
+            if (!applicationModel.tasks.length) {
+              return "";
+            }
+
+            const scheduleResult = await scheduleGraph(
+              applicationModel,
+              nextPlatformModel,
+              { suppressConnectionToast: true },
+            );
+
+            return scheduleResult.ok ? "" : scheduleResult.error ?? "";
           }}
         />
 

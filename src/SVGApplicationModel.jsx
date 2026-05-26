@@ -53,6 +53,8 @@ const SVGApplicationModel = ({
         width: 10,
         height: 10,
         label: edge.id,
+        sender: edge.sender,
+        receiver: edge.receiver,
       });
     });
 
@@ -100,7 +102,8 @@ const SVGApplicationModel = ({
       .classed(
         "highlighted-edge",
         (d) =>
-          highlightedEdge?.sender === d.v && highlightedEdge?.receiver === d.w,
+          String(highlightedEdge?.sender) === String(d.v) &&
+          String(highlightedEdge?.receiver) === String(d.w),
       )
       .attr("x1", (d) => calculateBoundaryPoint(dagreGraph.node(d.v), dagreGraph.node(d.w)).x)
       .attr("y1", (d) => calculateBoundaryPoint(dagreGraph.node(d.v), dagreGraph.node(d.w)).y)
@@ -108,7 +111,11 @@ const SVGApplicationModel = ({
       .attr("y2", (d) => calculateBoundaryPoint(dagreGraph.node(d.w), dagreGraph.node(d.v)).y)
       .attr("marker-end", "url(#application-arrowhead)")
       .on("click", (_event, edge) => {
-        onEdgeSelect?.({ sender: edge.v, receiver: edge.w });
+        const selectedEdge = dagreGraph.edge(edge);
+        onEdgeSelect?.({
+          sender: selectedEdge?.sender ?? edge.v,
+          receiver: selectedEdge?.receiver ?? edge.w,
+        });
       });
 
     svgGroup

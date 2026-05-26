@@ -165,18 +165,27 @@ export const ApplicationModal = ({ isOpen, onClose, onSubmit }) => {
   const [maxDeadline, setMaxDeadline] = useState(1000);
   const [linkProb, setLinkProb] = useState(0.5);
   const [maxMessageSize, setMaxMessageSize] = useState(50);
+  const [error, setError] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const taskInputRef = useRef(null);
 
   useEffect(() => {
-    if (isOpen && taskInputRef.current) {
+    if (!isOpen) return;
+
+    setError("");
+    setIsSubmitting(false);
+
+    if (taskInputRef.current) {
       taskInputRef.current.focus();
     }
   }, [isOpen]);
 
-  const handleSubmit = (event) => {
+  const handleSubmit = async (event) => {
     event.preventDefault();
-    onSubmit({
+    setIsSubmitting(true);
+
+    const nextError = await onSubmit({
       N,
       maxWCET,
       minWCET,
@@ -186,6 +195,14 @@ export const ApplicationModal = ({ isOpen, onClose, onSubmit }) => {
       linkProb,
       maxMessageSize,
     });
+
+    if (nextError) {
+      setError(nextError);
+      setIsSubmitting(false);
+      return;
+    }
+
+    setIsSubmitting(false);
     onClose();
   };
 
@@ -196,16 +213,17 @@ export const ApplicationModal = ({ isOpen, onClose, onSubmit }) => {
       isOpen={isOpen}
       onClose={onClose}
     >
-      <form className="modal-form" onSubmit={handleSubmit}>
+      <form className="modal-form" onSubmit={handleSubmit} noValidate>
         <div className="modal-inputs">
           <label className="modal-field">
             <span>Tasks</span>
             <input
               type="number"
               value={N}
-              onChange={(event) =>
-                setN(Math.abs(parseInt(event.target.value, 10)) || 0)
-              }
+              onChange={(event) => {
+                setN(Math.abs(parseInt(event.target.value, 10)) || 0);
+                setError("");
+              }}
               placeholder="Enter number of tasks"
               ref={taskInputRef}
             />
@@ -216,9 +234,10 @@ export const ApplicationModal = ({ isOpen, onClose, onSubmit }) => {
             <input
               type="number"
               value={maxWCET}
-              onChange={(event) =>
-                setMaxWCET(Math.abs(parseInt(event.target.value, 10)) || 0)
-              }
+              onChange={(event) => {
+                setMaxWCET(Math.abs(parseInt(event.target.value, 10)) || 0);
+                setError("");
+              }}
             />
           </label>
 
@@ -227,9 +246,10 @@ export const ApplicationModal = ({ isOpen, onClose, onSubmit }) => {
             <input
               type="number"
               value={minWCET}
-              onChange={(event) =>
-                setMinWCET(Math.abs(parseInt(event.target.value, 10)) || 0)
-              }
+              onChange={(event) => {
+                setMinWCET(Math.abs(parseInt(event.target.value, 10)) || 0);
+                setError("");
+              }}
             />
           </label>
 
@@ -238,9 +258,10 @@ export const ApplicationModal = ({ isOpen, onClose, onSubmit }) => {
             <input
               type="number"
               value={minMCET}
-              onChange={(event) =>
-                setMinMCET(Math.abs(parseInt(event.target.value, 10)) || 0)
-              }
+              onChange={(event) => {
+                setMinMCET(Math.abs(parseInt(event.target.value, 10)) || 0);
+                setError("");
+              }}
             />
           </label>
 
@@ -249,11 +270,12 @@ export const ApplicationModal = ({ isOpen, onClose, onSubmit }) => {
             <input
               type="number"
               value={minDeadlineOffset}
-              onChange={(event) =>
+              onChange={(event) => {
                 setMinDeadlineOffset(
                   Math.abs(parseInt(event.target.value, 10)) || 0,
-                )
-              }
+                );
+                setError("");
+              }}
             />
           </label>
 
@@ -262,9 +284,10 @@ export const ApplicationModal = ({ isOpen, onClose, onSubmit }) => {
             <input
               type="number"
               value={maxDeadline}
-              onChange={(event) =>
-                setMaxDeadline(Math.abs(parseInt(event.target.value, 10)) || 0)
-              }
+              onChange={(event) => {
+                setMaxDeadline(Math.abs(parseInt(event.target.value, 10)) || 0);
+                setError("");
+              }}
             />
           </label>
 
@@ -274,9 +297,10 @@ export const ApplicationModal = ({ isOpen, onClose, onSubmit }) => {
               type="number"
               value={linkProb}
               step="0.01"
-              onChange={(event) =>
-                setLinkProb(Math.abs(parseFloat(event.target.value)) || 0)
-              }
+              onChange={(event) => {
+                setLinkProb(Math.abs(parseFloat(event.target.value)) || 0);
+                setError("");
+              }}
             />
           </label>
 
@@ -285,17 +309,20 @@ export const ApplicationModal = ({ isOpen, onClose, onSubmit }) => {
             <input
               type="number"
               value={maxMessageSize}
-              onChange={(event) =>
+              onChange={(event) => {
                 setMaxMessageSize(
                   Math.abs(parseInt(event.target.value, 10)) || 0,
-                )
-              }
+                );
+                setError("");
+              }}
             />
           </label>
         </div>
 
+        <ModalError message={error} />
+
         <div className="modal-actions">
-          <button className="button button-accent" type="submit">
+          <button className="button button-accent" type="submit" disabled={isSubmitting}>
             Generate
           </button>
         </div>
@@ -313,18 +340,27 @@ export const PlatformModal = ({ isOpen, onClose, onSubmit }) => {
   const [minLinkDelay, setMinLinkDelay] = useState(1);
   const [maxBandwidth, setMaxBandwidth] = useState(100);
   const [minBandwidth, setMinBandwidth] = useState(1);
+  const [error, setError] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const computeInputRef = useRef(null);
 
   useEffect(() => {
-    if (isOpen && computeInputRef.current) {
+    if (!isOpen) return;
+
+    setError("");
+    setIsSubmitting(false);
+
+    if (computeInputRef.current) {
       computeInputRef.current.focus();
     }
   }, [isOpen]);
 
-  const handleSubmit = (event) => {
+  const handleSubmit = async (event) => {
     event.preventDefault();
-    onSubmit({
+    setIsSubmitting(true);
+
+    const nextError = await onSubmit({
       compute,
       routers,
       sensors,
@@ -334,6 +370,14 @@ export const PlatformModal = ({ isOpen, onClose, onSubmit }) => {
       maxBandwidth,
       minBandwidth,
     });
+
+    if (nextError) {
+      setError(nextError);
+      setIsSubmitting(false);
+      return;
+    }
+
+    setIsSubmitting(false);
     onClose();
   };
 
@@ -344,16 +388,17 @@ export const PlatformModal = ({ isOpen, onClose, onSubmit }) => {
       isOpen={isOpen}
       onClose={onClose}
     >
-      <form className="modal-form" onSubmit={handleSubmit}>
+      <form className="modal-form" onSubmit={handleSubmit} noValidate>
         <div className="modal-inputs">
           <label className="modal-field">
             <span>Compute Nodes</span>
             <input
               type="number"
               value={compute}
-              onChange={(event) =>
-                setCompute(Math.abs(parseInt(event.target.value, 10)) || 0)
-              }
+              onChange={(event) => {
+                setCompute(Math.abs(parseInt(event.target.value, 10)) || 0);
+                setError("");
+              }}
               placeholder="Enter number of compute nodes"
               ref={computeInputRef}
             />
@@ -364,9 +409,10 @@ export const PlatformModal = ({ isOpen, onClose, onSubmit }) => {
             <input
               type="number"
               value={routers}
-              onChange={(event) =>
-                setRouters(Math.abs(parseInt(event.target.value, 10)) || 0)
-              }
+              onChange={(event) => {
+                setRouters(Math.abs(parseInt(event.target.value, 10)) || 0);
+                setError("");
+              }}
             />
           </label>
 
@@ -375,9 +421,10 @@ export const PlatformModal = ({ isOpen, onClose, onSubmit }) => {
             <input
               type="number"
               value={sensors}
-              onChange={(event) =>
-                setSensors(Math.abs(parseInt(event.target.value, 10)) || 0)
-              }
+              onChange={(event) => {
+                setSensors(Math.abs(parseInt(event.target.value, 10)) || 0);
+                setError("");
+              }}
             />
           </label>
 
@@ -386,9 +433,10 @@ export const PlatformModal = ({ isOpen, onClose, onSubmit }) => {
             <input
               type="number"
               value={actuators}
-              onChange={(event) =>
-                setActuators(Math.abs(parseInt(event.target.value, 10)) || 0)
-              }
+              onChange={(event) => {
+                setActuators(Math.abs(parseInt(event.target.value, 10)) || 0);
+                setError("");
+              }}
             />
           </label>
 
@@ -397,9 +445,10 @@ export const PlatformModal = ({ isOpen, onClose, onSubmit }) => {
             <input
               type="number"
               value={maxLinkDelay}
-              onChange={(event) =>
-                setMaxLinkDelay(Math.abs(parseInt(event.target.value, 10)) || 0)
-              }
+              onChange={(event) => {
+                setMaxLinkDelay(Math.abs(parseInt(event.target.value, 10)) || 0);
+                setError("");
+              }}
             />
           </label>
 
@@ -408,9 +457,10 @@ export const PlatformModal = ({ isOpen, onClose, onSubmit }) => {
             <input
               type="number"
               value={minLinkDelay}
-              onChange={(event) =>
-                setMinLinkDelay(Math.abs(parseInt(event.target.value, 10)) || 0)
-              }
+              onChange={(event) => {
+                setMinLinkDelay(Math.abs(parseInt(event.target.value, 10)) || 0);
+                setError("");
+              }}
             />
           </label>
 
@@ -419,9 +469,10 @@ export const PlatformModal = ({ isOpen, onClose, onSubmit }) => {
             <input
               type="number"
               value={maxBandwidth}
-              onChange={(event) =>
-                setMaxBandwidth(Math.abs(parseInt(event.target.value, 10)) || 0)
-              }
+              onChange={(event) => {
+                setMaxBandwidth(Math.abs(parseInt(event.target.value, 10)) || 0);
+                setError("");
+              }}
             />
           </label>
 
@@ -430,15 +481,18 @@ export const PlatformModal = ({ isOpen, onClose, onSubmit }) => {
             <input
               type="number"
               value={minBandwidth}
-              onChange={(event) =>
-                setMinBandwidth(Math.abs(parseInt(event.target.value, 10)) || 0)
-              }
+              onChange={(event) => {
+                setMinBandwidth(Math.abs(parseInt(event.target.value, 10)) || 0);
+                setError("");
+              }}
             />
           </label>
         </div>
 
+        <ModalError message={error} />
+
         <div className="modal-actions">
-          <button className="button button-accent" type="submit">
+          <button className="button button-accent" type="submit" disabled={isSubmitting}>
             Generate
           </button>
         </div>
@@ -492,7 +546,7 @@ export const TaskLinkModal = ({ isOpen, onClose, onSubmit, tasks }) => {
       isOpen={isOpen}
       onClose={onClose}
     >
-      <form className="modal-form" onSubmit={handleSubmit}>
+      <form className="modal-form" onSubmit={handleSubmit} noValidate>
         <div className="modal-inputs">
           <label className="modal-field">
             <span>From Task</span>
@@ -570,7 +624,7 @@ export const NodeModal = ({ isOpen, onClose, onSubmit, nodeTypes }) => {
       isOpen={isOpen}
       onClose={onClose}
     >
-      <form className="modal-form" onSubmit={handleSubmit}>
+      <form className="modal-form" onSubmit={handleSubmit} noValidate>
         <div className="modal-inputs modal-inputs-single">
           <label className="modal-field">
             <span>Node Type</span>
@@ -643,7 +697,7 @@ export const NodeLinkModal = ({ isOpen, onClose, onSubmit, nodes }) => {
       isOpen={isOpen}
       onClose={onClose}
     >
-      <form className="modal-form" onSubmit={handleSubmit}>
+      <form className="modal-form" onSubmit={handleSubmit} noValidate>
         <div className="modal-inputs">
           <label className="modal-field">
             <span>Start Node</span>
